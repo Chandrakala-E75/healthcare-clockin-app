@@ -1,0 +1,61 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = "file:./dev.db"
+}
+
+model User {
+  id        String   @id @default(cuid())
+  email     String   @unique
+  name      String?
+  picture   String?
+  role      String   @default("careworker") // "manager" or "careworker"
+  auth0Id   String?  @unique
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // Relationships
+  clockRecords ClockRecord[]
+
+  @@map("users")
+}
+
+model ClockRecord {
+  id          String    @id @default(cuid())
+  userId      String
+  clockInTime DateTime
+  clockOutTime DateTime?
+  clockInNote String?
+  clockOutNote String?
+  clockInLocation Json? // {lat: number, lng: number, address: string}
+  clockOutLocation Json?
+  duration    Int?      // Duration in minutes, calculated when clocked out
+  isActive    Boolean   @default(true) // true if currently clocked in
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  // Relationships
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("clock_records")
+}
+
+model WorkplaceSettings {
+  id          String  @id @default(cuid())
+  name        String  @default("Healthcare Facility")
+  latitude    Float
+  longitude   Float
+  address     String?
+  radius      Int     @default(2000) // Radius in meters (default 2km)
+  isActive    Boolean @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@map("workplace_settings")
+}
