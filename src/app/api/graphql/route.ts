@@ -1,25 +1,42 @@
+import { ApolloServer } from 'apollo-server-micro';
 import { NextRequest, NextResponse } from 'next/server';
-import { PrismaClient } from '@prisma/client';
+import { typeDefs } from '@/graphql/schema';
+import { resolvers } from '@/graphql/resolvers';
+import { getSession } from '@auth0/nextjs-auth0';
 
-const prisma = new PrismaClient();
+const apolloServer = new ApolloServer({
+  typeDefs,
+  resolvers,
+  context: async ({ req }) => {
+    try {
+      const session = await getSession();
+      return {
+        user: session?.user || null,
+      };
+    } catch (error) {
+      console.error('Context error:', error);
+      return { user: null };
+    }
+  },
+  introspection: true,
+  playground: true,
+});
 
-export async function GET() {
-  try {
-    // Test database connection
-    await prisma.$connect();
-    return NextResponse.json({ 
-      message: 'GraphQL endpoint working',
-      database: 'Connected' 
-    });
-  } catch (error) {
-    console.error('Database error:', error);
-    return NextResponse.json({ 
-      error: 'Database connection failed',
-      details: error.message 
-    }, { status: 500 });
-  }
+const startServer = apolloServer.start();
+
+export async function POST(request: NextRequest) {
+  await startServer;
+  
+  const body = await request.text();
+  
+  const response = await apolloServer.executeOperation({
+    query: body.includes('query') ? JSON.parse(body).query : body,
+    variables: body.includes('variables') ? JSON.parse(body).variables : {},
+  });
+
+  return NextResponse.json(response);
 }
 
-export async function POST() {
-  return NextResponse.json({ message: 'POST method working' });
+export async function GET() {
+  return NextResponse.json({ message: 'GraphQL endpoint ready' });
 }
