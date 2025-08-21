@@ -1,13 +1,19 @@
-import { ApolloServer } from 'apollo-server-micro';
-import { NextRequest, NextResponse } from 'next/server';
+import { NextRequest } from 'next/server';
+import { createYoga } from 'graphql-yoga';
+import { createSchema } from 'graphql-yoga';
 import { typeDefs } from '@/graphql/schema';
 import { resolvers } from '@/graphql/resolvers';
 import { getSession } from '@auth0/nextjs-auth0';
 
-const apolloServer = new ApolloServer({
+const schema = createSchema({
   typeDefs,
   resolvers,
-  context: async ({ req }) => {
+});
+
+const yoga = createYoga({
+  schema,
+  graphqlEndpoint: '/api/graphql',
+  context: async (context) => {
     try {
       const session = await getSession();
       return {
@@ -18,25 +24,6 @@ const apolloServer = new ApolloServer({
       return { user: null };
     }
   },
-  introspection: true,
-  playground: true,
 });
 
-const startServer = apolloServer.start();
-
-export async function POST(request: NextRequest) {
-  await startServer;
-  
-  const body = await request.text();
-  
-  const response = await apolloServer.executeOperation({
-    query: body.includes('query') ? JSON.parse(body).query : body,
-    variables: body.includes('variables') ? JSON.parse(body).variables : {},
-  });
-
-  return NextResponse.json(response);
-}
-
-export async function GET() {
-  return NextResponse.json({ message: 'GraphQL endpoint ready' });
-}
+export { yoga as GET, yoga as POST };
